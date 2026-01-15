@@ -87,6 +87,8 @@ expr* copy(expr* obj)
         return createFunc(obj->get.func.arg, copy(obj->get.func.body));
     case app_t:
         return createApp(copy(obj->get.app.lhs), copy(obj->get.app.rhs));
+    default:
+        return NULL;
     }
 }
 
@@ -98,13 +100,26 @@ expr* replace(expr* exprIn, char* name, expr* arg)
             return arg;
         return exprIn;
     case func_t:
-        exprIn->get.func.body = replace(exprIn->get.func.body, name, arg);
-        return exprIn;
-    case app_t:
-        exprIn->get.app.lhs = replace(exprIn->get.app.lhs, name, arg);
-        exprIn->get.app.rhs = replace(exprIn->get.app.rhs, name, arg);
-        return exprIn;
+        if (strcmp(exprIn->get.func.arg, name) == 0) {
+            return exprIn;
+        }
+        expr* newBody = replace(exprIn->get.func.body, name, arg);
+
+        if (newBody == exprIn->get.func.body) {
+            return exprIn;
+        }
+        return createFunc(exprIn->get.func.arg, newBody);
+    case app_t: {
+        expr* newLhs = replace(exprIn->get.app.lhs, name, arg);
+        expr* newRhs = replace(exprIn->get.app.rhs, name, arg);
+
+        if (newLhs == exprIn->get.app.lhs && newRhs == exprIn->get.app.rhs) {
+            return exprIn;
+        }
+        return createApp(newLhs, newRhs);
     }
+    }
+    return NULL;
 }
 
 expr* eval(expr* exprIn)
@@ -115,22 +130,21 @@ expr* eval(expr* exprIn)
     case val_t:
     case func_t:
         return exprIn;
-    case app_t:
-        if (exprIn->get.app.lhs->type == func_t) {
-            exprIn->get.app.lhs = eval(exprIn->get.app.lhs);
-            return replace(
-                exprIn->get.app.lhs->get.func.body,
-                exprIn->get.app.lhs->get.func.arg,
-                eval(exprIn->get.app.rhs));
-        } else if (exprIn->get.app.lhs->type == app_t) {
-            exprIn->get.app.lhs = eval(exprIn->get.app.lhs);
-            return eval(exprIn);
-        } else {
-            printf("well fuck\n");
-            abort();
+
+    case app_t: {
+        expr* func = eval(exprIn->get.app.lhs);
+        expr* arg = eval(exprIn->get.app.rhs);
+
+        if (func->type == func_t) {
+            expr* body_copy = copy(func->get.func.body);
+            expr* substituted_body = replace(body_copy, func->get.func.arg, arg);
+            return eval(substituted_body);
         }
-        return NULL;
+
+        return createApp(func, arg);
     }
+    }
+    return NULL;
 }
 
 int main(void)
