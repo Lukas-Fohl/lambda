@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -54,6 +55,30 @@ expr* createApp(expr* lhs, expr* rhs)
     return ret;
 }
 
+char* getNewName()
+{
+    static u32 counter = 0;
+    char* str = arena_push(exprArena, 16 * sizeof(char));
+    sprintf(str, "FR%uEE", counter++);
+    return str;
+}
+
+bool containsFree(expr* exprIn, char* nameIn)
+{
+    switch (exprIn->type) {
+    case val_t:
+        return (strcmp(exprIn->get.val, nameIn) == 0);
+    case app_t:
+        return containsFree(exprIn->get.app.lhs, nameIn) || containsFree(exprIn->get.app.rhs, nameIn);
+    case func_t:
+        if (strcmp(exprIn->get.func.arg, nameIn) == 0) {
+            return false;
+        }
+        return containsFree(exprIn->get.func.body, nameIn);
+    }
+    return false;
+}
+
 void printExpr(expr* exprIn)
 {
     switch (exprIn->type) {
@@ -61,7 +86,7 @@ void printExpr(expr* exprIn)
         printf("%s", exprIn->get.val);
         break;
     case func_t:
-        printf("\\%s.", exprIn->get.func.arg);
+        printf("λ%s.", exprIn->get.func.arg);
         printExpr(exprIn->get.func.body);
         break;
     case app_t:
@@ -73,10 +98,6 @@ void printExpr(expr* exprIn)
         break;
     }
 }
-
-// expr* apply(expr* func, expr* arg)
-// {
-// }
 
 expr* copy(expr* obj)
 {
@@ -102,6 +123,13 @@ expr* replace(expr* exprIn, char* name, expr* arg)
     case func_t:
         if (strcmp(exprIn->get.func.arg, name) == 0) {
             return exprIn;
+        }
+
+        if (containsFree(arg, exprIn->get.func.arg)) {
+            char* newName = getNewName();
+            expr* newBody = replace(exprIn->get.func.body, exprIn->get.func.arg, createVal(newName));
+            expr* newFunc = createFunc(newName, newBody);
+            return replace(newFunc, name, arg);
         }
         expr* newBody = replace(exprIn->get.func.body, name, arg);
 
@@ -130,7 +158,6 @@ expr* eval(expr* exprIn)
     case val_t:
     case func_t:
         return exprIn;
-
     case app_t: {
         expr* func = eval(exprIn->get.app.lhs);
         expr* arg = eval(exprIn->get.app.rhs);
@@ -147,24 +174,70 @@ expr* eval(expr* exprIn)
     return NULL;
 }
 
+bool equal(expr* lhs, expr* rhs)
+{
+    printf("pls don't use this for equal %d\n", __LINE__);
+    if (lhs->type != rhs->type)
+        return false;
+    switch (lhs->type) {
+    case val_t:
+        return strcmp(lhs->get.val, rhs->get.val) == 0;
+    case func_t:
+        return strcmp(lhs->get.func.arg, rhs->get.func.arg) == 0
+            && equal(lhs->get.func.body, rhs->get.func.body);
+    case app_t:
+        return equal(lhs->get.app.lhs, rhs->get.app.lhs)
+            && equal(lhs->get.app.rhs, rhs->get.app.rhs);
+    default:
+        return false;
+    }
+}
+
 int main(void)
 {
     exprArena = arena_alloc(KB_SIZE(5));
-    // expr* valA = createVal("a");
-    // expr* valB = createVal("b");
-    // expr* funcA = createFunc("b", valB);
-    // expr* appA = createApp(funcA, valA);
-    // printExpr(appA);
-    // printf("\n");
+
     expr* True = createFunc("then", createFunc("else", createVal("then")));
+    // expr* Id = createFunc("x", createVal("x"));
     expr* False = createFunc("then", createFunc("else", createVal("else")));
-    expr* t = createApp(createApp(True, createVal("t")), createVal("f"));
-    expr* f = createApp(createApp(False, createVal("t")), createVal("f"));
-    printExpr(t);
+    expr* And = createFunc("p",
+        createFunc("q",
+            createApp(
+                createApp(createVal("p"), createVal("q")),
+                createVal("p"))));
+    expr* a = createApp(createApp(And, True), False);
+
+    // expr* t = createApp(createApp(True, createVal("t")), createVal("f"));
+    // expr* f = createApp(createApp(False, createVal("t")), createVal("f"));
+    // printExpr(t);
+    // printf("\n");
+    // printExpr(eval(t));
+    // printf("\n");
+    // printExpr(eval(f));
+
+    printf("And True False\n");
+    printExpr(a);
     printf("\n");
-    printExpr(eval(t));
+    printExpr(eval(a));
+
+    expr* alpha = createApp(createFunc("x", createFunc("y", createVal("x"))), createVal("y"));
     printf("\n");
-    printExpr(eval(f));
-    free(exprArena);
+    printExpr(alpha);
+    printf("\n");
+    printExpr(eval(alpha));
+
+    // expr* rec = createApp(createFunc("x",createApp(createVal("x"),createVal("x"))),createFunc("x",createApp(createVal("x"),createVal("x"))));
+    // printf("\n");
+    // printExpr(rec);
+    // printf("\n");
+    // printExpr(eval(rec));
+    // free(exprArena);
     return 0;
 }
+
+/*
+TODO:
+    - [x] alpha renaming
+    - eval step -> check recursion
+    - lexer
+ */
