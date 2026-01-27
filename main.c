@@ -4,6 +4,8 @@
 
 #include "util.h"
 
+#define MAX_RECURSION_DEPTH 1000
+
 typedef enum {
     val_t = 0,
     func_t,
@@ -26,6 +28,11 @@ struct expr {
         } func;
     } get;
 };
+
+// typedef expr* expr_p;
+//
+// DYNAMIC_LIST_PROTOTYPE(expr_p)
+// DYNAMIC_LIST_IMPL(expr_p)
 
 arena* exprArena;
 
@@ -150,22 +157,27 @@ expr* replace(expr* exprIn, char* name, expr* arg)
     return NULL;
 }
 
-expr* eval(expr* exprIn)
+expr* eval(expr* exprIn, unsigned depth)
 {
-    printExpr(exprIn);
-    printf("\n");
+    if (depth == 0) {
+        printExpr(exprIn);
+        giveUp("^ reached max recusrion limit");
+    }
+
+    // printExpr(exprIn);
+    // printf("\n");
     switch (exprIn->type) {
     case val_t:
     case func_t:
         return exprIn;
     case app_t: {
-        expr* func = eval(exprIn->get.app.lhs);
-        expr* arg = eval(exprIn->get.app.rhs);
+        expr* func = eval(exprIn->get.app.lhs, depth - 1);
+        expr* arg = eval(exprIn->get.app.rhs, depth - 1);
 
         if (func->type == func_t) {
             expr* body_copy = copy(func->get.func.body);
             expr* substituted_body = replace(body_copy, func->get.func.arg, arg);
-            return eval(substituted_body);
+            return eval(substituted_body, depth - 1);
         }
 
         return createApp(func, arg);
@@ -195,7 +207,7 @@ bool equal(expr* lhs, expr* rhs)
 
 int main(void)
 {
-    exprArena = arena_alloc(KB_SIZE(5));
+    exprArena = arena_alloc(KB_SIZE(512));
 
     expr* True = createFunc("then", createFunc("else", createVal("then")));
     // expr* Id = createFunc("x", createVal("x"));
@@ -218,20 +230,20 @@ int main(void)
     printf("And True False\n");
     printExpr(a);
     printf("\n");
-    printExpr(eval(a));
+    printExpr(eval(a, MAX_RECURSION_DEPTH));
 
     expr* alpha = createApp(createFunc("x", createFunc("y", createVal("x"))), createVal("y"));
     printf("\n");
     printExpr(alpha);
     printf("\n");
-    printExpr(eval(alpha));
+    printExpr(eval(alpha, MAX_RECURSION_DEPTH));
 
-    // expr* rec = createApp(createFunc("x",createApp(createVal("x"),createVal("x"))),createFunc("x",createApp(createVal("x"),createVal("x"))));
-    // printf("\n");
-    // printExpr(rec);
-    // printf("\n");
-    // printExpr(eval(rec));
-    // free(exprArena);
+    expr* rec = createApp(createFunc("x",createApp(createVal("x"),createVal("x"))),createFunc("x",createApp(createVal("x"),createVal("x"))));
+    printf("\n");
+    printExpr(rec);
+    printf("\n");
+    printExpr(eval(rec, MAX_RECURSION_DEPTH));
+    free(exprArena);
     return 0;
 }
 
@@ -239,5 +251,7 @@ int main(void)
 TODO:
     - [x] alpha renaming
     - eval step -> check recursion
+        - fuel
+    - nice print
     - lexer
  */
