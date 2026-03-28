@@ -1,5 +1,5 @@
-#include "util.h"
 #include "expr.h"
+#include "util.h"
 
 arena* exprArena;
 
@@ -126,8 +126,10 @@ expr* replace(expr* exprIn, char* name, expr* arg)
 
 expr* eval(expr* exprIn)
 {
+#ifdef DEBUG
     printExpr(exprIn);
     printf("\n");
+#endif
     switch (exprIn->type) {
     case val_t:
     case func_t:

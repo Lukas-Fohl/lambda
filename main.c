@@ -6,66 +6,43 @@
 #include "read.h"
 #include "util.h"
 
+#define MAX_CHAR_READ_LIMIT 1024
+
 extern arena* exprArena;
 
 int main(void)
 {
-    exprArena = arena_alloc(KB_SIZE(5));
-
-    expr* True = createFunc("then", createFunc("else", createVal("then")));
-    printExpr(True);
-    printf("\n");
-    // expr* Id = createFunc("x", createVal("x"));
-    expr* False = createFunc("then", createFunc("else", createVal("else")));
-    printExpr(False);
-    printf("\n");
-    expr* And = createFunc("p",
-        createFunc("q",
-            createApp(
-                createApp(createVal("p"), createVal("q")),
-                createVal("p"))));
-    expr* a = createApp(createApp(And, True), False);
-
-    expr* t = createApp(createApp(True, createVal("t")), createVal("f"));
-    expr* f = createApp(createApp(False, createVal("t")), createVal("f"));
-    printExpr(t);
-    printf("\n");
-    printExpr(eval(t));
-    printf("\n");
-    printExpr(eval(f));
-
-    printf("And True False\n");
-    printExpr(a);
-    printf("\n");
-    printExpr(eval(a));
+    exprArena = arena_alloc(KB_SIZE(500));
 
     populateStd();
-    printf("\n");
-    printf("some diff");
-    printf("\n");
-    expr* test = createApp(createApp(createVal("And"), createVal("True")), createVal("True"));
-    printExpr(eval(replaceFromStd(test)));
-    printf("\n");
 
-    // expr* alpha = createApp(createFunc("x", createFunc("y", createVal("x"))), createVal("y"));
-    // printf("\n");
-    // printExpr(alpha);
-    // printf("\n");
-    // printExpr(eval(alpha));
+    char cmdInput[MAX_CHAR_READ_LIMIT];
 
-    // expr* rec = createApp(createFunc("x",createApp(createVal("x"),createVal("x"))),createFunc("x",createApp(createVal("x"),createVal("x"))));
-    // printf("\n");
-    // printExpr(rec);
-    // printf("\n");
-    // printExpr(eval(rec));
-    // free(exprArena);
+    char* helpString = "Included functions are: True, False, And, Or, Not\nUse q to quit\nUse h for help";
+    printf("%s\n", helpString);
+
+    while (1) {
+        printf(">>> ");
+        if (fgets(cmdInput, MAX_CHAR_READ_LIMIT, stdin) == NULL) {
+            break;
+        }
+
+        cmdInput[strcspn(cmdInput, "\n")] = '\0';
+
+        if (strcmp(cmdInput, "q") == 0) {
+            break;
+        } else if (strcmp(cmdInput, "h") == 0) {
+            printf("%s\n", helpString);
+        }
+
+        if (strlen(cmdInput) == 0) {
+            continue;
+        }
+        printExpr(eval(stringToExpr(cmdInput)));
+        printf("\n");
+    }
+
+    free(exprArena);
 
     return 0;
 }
-
-/*
-TODO:
-    - [x] alpha renaming
-    - eval step -> check recursion
-    - lexer
- */
