@@ -6,14 +6,16 @@
 #include <stdlib.h>
 
 /*=== common ===*/
-void TODO(char* err)
+[[noreturn]]
+static inline void TODO(char* err)
 {
     fprintf(stdout, "%s\n", err);
     fflush(stdout);
     abort();
 }
 
-void giveUp(char* err)
+[[noreturn]]
+static inline void giveUp(char* err)
 {
     fprintf(stderr, "%s\n", err);
     fflush(stderr);
@@ -53,7 +55,7 @@ typedef struct {
 
 #define ARENA_BASE_SIZE sizeof(arena)
 
-arena* arena_alloc(size_t size)
+static inline arena* arena_alloc(size_t size)
 {
     arena* ret = (arena*)malloc(size + ARENA_BASE_SIZE);
     ret->reserved = size + ARENA_BASE_SIZE;
@@ -61,7 +63,7 @@ arena* arena_alloc(size_t size)
     return ret;
 }
 
-void* arena_push(arena* arenaIn, size_t size)
+static inline void* arena_push(arena* arenaIn, size_t size)
 {
     if (arenaIn->used + size <= arenaIn->reserved) {
         void* ret = (char*)arenaIn + arenaIn->used;
@@ -71,7 +73,7 @@ void* arena_push(arena* arenaIn, size_t size)
     return NULL;
 }
 
-void* arena_pop(arena* arenaIn, size_t size)
+static inline void* arena_pop(arena* arenaIn, size_t size)
 {
     if (arenaIn->used - size >= ARENA_BASE_SIZE) {
         arenaIn->used -= size;
@@ -81,7 +83,7 @@ void* arena_pop(arena* arenaIn, size_t size)
     return NULL;
 }
 
-void arena_free(arena* arenaIn)
+static inline void arena_free(arena* arenaIn)
 {
     if (arenaIn != NULL) {
         free(arenaIn);
@@ -90,14 +92,14 @@ void arena_free(arena* arenaIn)
 
 /*=== dynamic - list ===*/
 
-#define DYNAMIC_LIST_PROTOTYPE(t)                             \
-    typedef struct dyn_##t dyn_##t;                           \
-    dyn_##t dyn_##t##_create(size_t maxLen);                  \
-    bool dyn_##t##_push(dyn_##t* listIn, t element);          \
-    t dyn_##t##_get(dyn_##t* listIn, size_t idx);             \
-    bool dyn_##t##_set(dyn_##t* listIn, size_t idx, t value); \
-    size_t dyn_##t##_len(dyn_##t* listIn);                    \
-    bool dyn_##t##_remove(dyn_##t* listIn, size_t idx);
+#define DYNAMIC_LIST_PROTOTYPE(t)                                           \
+    typedef struct dyn_##t dyn_##t;                                         \
+    static inline dyn_##t dyn_##t##_create(size_t maxLen);                  \
+    static inline bool dyn_##t##_push(dyn_##t* listIn, t element);          \
+    static inline t dyn_##t##_get(dyn_##t* listIn, size_t idx);             \
+    static inline bool dyn_##t##_set(dyn_##t* listIn, size_t idx, t value); \
+    static inline size_t dyn_##t##_len(dyn_##t* listIn);                    \
+    static inline bool dyn_##t##_remove(dyn_##t* listIn, size_t idx);
 
 #define dyn_create(t, maxLen) dyn_##t##_create(maxLen)
 #define dyn_push(t, listIn, element) dyn_##t##_push(listIn, element)
@@ -113,7 +115,7 @@ void arena_free(arena* arenaIn)
         t* content;                                                                         \
     };                                                                                      \
                                                                                             \
-    dyn_##t dyn_##t##_create(size_t maxLen)                                                 \
+    static inline dyn_##t dyn_##t##_create(size_t maxLen)                                   \
     {                                                                                       \
         dyn_##t temp;                                                                       \
         temp.content = (t*)calloc(maxLen, sizeof(t));                                       \
@@ -122,7 +124,7 @@ void arena_free(arena* arenaIn)
         return temp;                                                                        \
     }                                                                                       \
                                                                                             \
-    bool dyn_##t##_push(dyn_##t* listIn, t element)                                         \
+    static inline bool dyn_##t##_push(dyn_##t* listIn, t element)                           \
     {                                                                                       \
         if (listIn->maxLen == 0 || listIn->content == NULL)                                 \
             return false;                                                                   \
@@ -145,7 +147,7 @@ void arena_free(arena* arenaIn)
         return dyn_##t##_push(listIn, element);                                             \
     }                                                                                       \
                                                                                             \
-    t dyn_##t##_get(dyn_##t* listIn, size_t idx)                                            \
+    static inline t dyn_##t##_get(dyn_##t* listIn, size_t idx)                              \
     {                                                                                       \
         if (idx > listIn->maxLen - 1)                                                       \
             giveUp("list out of bound");                                                    \
@@ -154,7 +156,7 @@ void arena_free(arena* arenaIn)
         return listIn->content[idx];                                                        \
     }                                                                                       \
                                                                                             \
-    bool dyn_##t##_set(dyn_##t* listIn, size_t idx, t value)                                \
+    static inline bool dyn_##t##_set(dyn_##t* listIn, size_t idx, t value)                  \
     {                                                                                       \
         if (idx > listIn->maxLen - 1 || listIn->content == NULL)                            \
             return false;                                                                   \
@@ -163,12 +165,12 @@ void arena_free(arena* arenaIn)
         return true;                                                                        \
     }                                                                                       \
                                                                                             \
-    size_t dyn_##t##_len(dyn_##t* listIn)                                                   \
+    static inline size_t dyn_##t##_len(dyn_##t* listIn)                                     \
     {                                                                                       \
         return listIn->cLen;                                                                \
     }                                                                                       \
                                                                                             \
-    bool dyn_##t##_remove(dyn_##t* listIn, size_t idx)                                      \
+    static inline bool dyn_##t##_remove(dyn_##t* listIn, size_t idx)                        \
     {                                                                                       \
         if (listIn->maxLen == 0                                                             \
             || listIn->cLen == 0                                                            \
