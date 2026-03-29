@@ -5,8 +5,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+    #define NO_RETURN [[noreturn]]
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+    #define NO_RETURN _Noreturn
+#else
+    #ifdef __GNUC__
+        #define NO_RETURN __attribute__((noreturn))
+    #else
+        #define NO_RETURN
+    #endif
+#endif
+
 /*=== common ===*/
-[[noreturn]]
+
+NO_RETURN
 static inline void TODO(char* err)
 {
     fprintf(stdout, "%s\n", err);
@@ -14,7 +27,7 @@ static inline void TODO(char* err)
     abort();
 }
 
-[[noreturn]]
+NO_RETURN
 static inline void giveUp(char* err)
 {
     fprintf(stderr, "%s\n", err);

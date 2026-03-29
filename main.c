@@ -33,6 +33,7 @@ int main(void)
             break;
         } else if (strcmp(cmdInput, "h") == 0) {
             printf("%s\n", helpString);
+            continue;
         }
 
         if (strlen(cmdInput) == 0) {

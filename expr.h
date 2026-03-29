@@ -2,6 +2,7 @@
 #define EXPR_H
 
 #include <string.h>
+#include <stdbool.h>
 
 typedef enum {
     val_t = 0,
